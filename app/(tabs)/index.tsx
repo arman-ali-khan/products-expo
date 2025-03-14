@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Alert } from 'react-native';
-import { MoreVertical, Edit2, Trash2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Alert, ScrollView, RefreshControl } from 'react-native';
+import { MoveVertical as MoreVertical, CreditCard as Edit2, Trash2 } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { Menu, MenuItem } from '@/components/Menu';
 import { getProducts, saveProducts } from '@/app/utils/storage';
 import type { Product } from '@/app/types';
@@ -8,6 +9,7 @@ import type { Product } from '@/app/types';
 export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -16,6 +18,12 @@ export default function ProductList() {
   async function loadProducts() {
     const storedProducts = await getProducts();
     setProducts(storedProducts);
+  }
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await loadProducts();
+    setRefreshing(false);
   }
 
   async function handleDelete(id: string) {
@@ -28,9 +36,14 @@ export default function ProductList() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const updatedProducts = products.filter(p => p.id !== id);
-            await saveProducts(updatedProducts);
-            setProducts(updatedProducts);
+            try {
+              const updatedProducts = products.filter(p => p.id !== id);
+              await saveProducts(updatedProducts);
+              setProducts(updatedProducts);
+              setSelectedProduct(null);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete product. Please try again.');
+            }
           },
         },
       ]
@@ -72,10 +85,7 @@ export default function ProductList() {
             icon={<Edit2 size={20} />}
           />
           <MenuItem
-            onPress={() => {
-              setSelectedProduct(null);
-              handleDelete(item.id);
-            }}
+            onPress={() => handleDelete(item.id)}
             title="Delete"
             icon={<Trash2 size={20} color="red" />}
             titleStyle={{ color: 'red' }}
@@ -88,13 +98,23 @@ export default function ProductList() {
   return (
     <View style={styles.container}>
       {products.length === 0 ? (
-        <Text style={styles.empty}>No products added yet</Text>
+        <ScrollView
+          contentContainerStyle={styles.emptyContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Text style={styles.empty}>No products added yet</Text>
+        </ScrollView>
       ) : (
         <FlatList
           data={products}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       )}
     </View>
@@ -105,6 +125,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  emptyContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   list: {
     padding: 16,
@@ -149,7 +174,6 @@ const styles = StyleSheet.create({
   },
   empty: {
     textAlign: 'center',
-    marginTop: 24,
     fontSize: 16,
     color: '#666',
   },

@@ -25,6 +25,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="edit/[id]"
+        options={{
+          href: null,
+          title: 'Edit Product',
+        }}
+      />
     </Tabs>
   );
 }

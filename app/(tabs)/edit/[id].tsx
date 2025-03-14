@@ -1,18 +1,37 @@
-import { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Platform, ScrollView } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { router } from 'expo-router';
 import { getProducts, saveProducts } from '@/app/utils/storage';
 import type { Product } from '@/app/types';
 
-export default function AddProduct() {
+export default function EditProduct() {
+  const { id } = useLocalSearchParams();
+  const [product, setProduct] = useState<Product | null>(null);
   const [name, setName] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
   const [sellPrice, setSellPrice] = useState('');
   const [quantity, setQuantity] = useState('');
   const [image, setImage] = useState('');
+
+  useEffect(() => {
+    loadProduct();
+  }, [id]);
+
+  async function loadProduct() {
+    const products = await getProducts();
+    const foundProduct = products.find(p => p.id === id);
+    if (foundProduct) {
+      setProduct(foundProduct);
+      setName(foundProduct.name);
+      setBuyPrice(foundProduct.buyPrice);
+      setSellPrice(foundProduct.sellPrice);
+      setQuantity(foundProduct.quantity);
+      setImage(foundProduct.image);
+    }
+  }
 
   async function pickImage() {
     try {
@@ -50,41 +69,38 @@ export default function AddProduct() {
       return;
     }
 
-    const newProduct: Product = {
-      id: Date.now().toString(),
-      name,
-      buyPrice,
-      sellPrice,
-      quantity,
-      image,
-      timestamp: Date.now(),
-    };
-
-    try {
-      const products = await getProducts();
-      await saveProducts([...products, newProduct]);
-
-      setName('');
-      setBuyPrice('');
-      setSellPrice('');
-      setQuantity('');
-      setImage('');
-
-      router.push('/');
-    } catch (error) {
-      alert('Failed to save product. Please try again.');
+    if (!product) {
+      return;
     }
+
+    const products = await getProducts();
+    const updatedProducts = products.map(p => 
+      p.id === id 
+        ? { ...p, name, buyPrice, sellPrice, quantity, image }
+        : p
+    );
+
+    await saveProducts(updatedProducts);
+    router.back();
+  }
+
+  if (!product) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.error}>Product not found</Text>
+      </View>
+    );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <View style={styles.container}>
       <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
         {image ? (
           <Image source={{ uri: image }} style={styles.image} />
         ) : (
           <View style={styles.placeholder}>
             <Camera size={32} color="#666" />
-            <Text style={styles.placeholderText}>Add Photo</Text>
+            <Text style={styles.placeholderText}>Change Photo</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -121,19 +137,17 @@ export default function AddProduct() {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Add Product</Text>
+        <Text style={styles.buttonText}>Update Product</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  contentContainer: {
     padding: 16,
+    backgroundColor: '#f5f5f5',
   },
   imageButton: {
     width: 150,
@@ -171,11 +185,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 20,
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  error: {
+    textAlign: 'center',
+    marginTop: 24,
+    fontSize: 16,
+    color: 'red',
   },
 });
