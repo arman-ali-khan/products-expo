@@ -13,7 +13,7 @@
     "@lucide/lab": "^0.1.2",
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/native": "^7.0.0",
-    "expo": "~52.0.0",
+    "expo": "~54.0.31",
     "expo-blur": "~12.9.1",
     "expo-constants": "~15.4.5",
     "expo-font": "~11.10.2",
